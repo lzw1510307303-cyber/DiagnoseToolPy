@@ -1,0 +1,25 @@
+version: "3.8"
+
+services:
+  diagnose-tool:
+    build: .
+    container_name: diagnose-tool
+    ports:
+      - "18080:18080"
+    volumes:
+      - /data/diagnose/input:/data/diagnose/input:ro
+      - /mnt/log-share:/mnt/log-share:ro
+      - /data/diagnose/output:/data/diagnose/output:rw
+      - /data/diagnose/cases:/data/diagnose/cases:rw
+      - /data/diagnose/indexes:/data/diagnose/indexes:rw
+      - /data/diagnose/runtime:/data/diagnose/runtime:rw
+      - ./config:/app/config:ro
+    environment:
+      - DIAGNOSE_CONFIG=/app/config/app.yaml
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:18080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s

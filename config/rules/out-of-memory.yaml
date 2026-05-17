@@ -1,0 +1,8 @@
+category: out-of-memory
+display_name: Out of Memory
+severity: ERROR
+keywords:
+  - OutOfMemoryError
+  - java.lang.OutOfMemoryError
+  - Heap space
+  - GC overhead

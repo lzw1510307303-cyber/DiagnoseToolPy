@@ -1,0 +1,8 @@
+category: io-error
+display_name: I/O Error
+severity: ERROR
+keywords:
+  - IOException
+  - java.io.IOException
+  - FileNotFoundException
+  - SocketException

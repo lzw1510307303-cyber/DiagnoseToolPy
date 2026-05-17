@@ -1,0 +1,7 @@
+category: null-pointer
+display_name: Null Pointer Exception
+severity: ERROR
+keywords:
+  - NullPointerException
+  - null pointer
+  - java.lang.NullPointerException

@@ -1,0 +1,12 @@
+- case_id: CASE-20260517004351
+  title: Indexed Case
+  slug: indexed-case
+  status: archived
+  source_type: manual
+  created_at: '2026-05-17 00:43:51'
+- case_id: CASE-001
+  title: Orchestrated Case
+  slug: orchestrated
+  status: archived
+  source_type: auto
+  created_at: '2026-05-17 00:35:57'
