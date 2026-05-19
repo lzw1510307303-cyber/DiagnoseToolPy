@@ -7,8 +7,6 @@ from fastapi.responses import HTMLResponse
 
 from diagnose_tool.api.routes_case import router as case_router
 from diagnose_tool.api.routes_diagnosis import router as diagnosis_router
-from diagnose_tool.api.routes_log_search import router as log_search_router
-from diagnose_tool.api.routes_log_diagnosis import router as log_diagnosis_router
 from diagnose_tool.api.routes_source import router as source_router
 from diagnose_tool.core.config import load_config
 
@@ -21,8 +19,6 @@ def create_app() -> FastAPI:
     app.include_router(source_router)
     app.include_router(case_router)
     app.include_router(diagnosis_router)
-    app.include_router(log_search_router)
-    app.include_router(log_diagnosis_router)
 
     @app.get("/health")
     def health() -> dict[str, str]:

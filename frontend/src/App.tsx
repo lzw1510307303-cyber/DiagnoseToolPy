@@ -1,5 +1,4 @@
 import { Routes, Route } from 'react-router-dom';
-import './styles.css';
 import AppLayout from './components/layout/AppLayout';
 import DashboardPage from './pages/DashboardPage';
 import AnalysisTasksPage from './pages/AnalysisTasksPage';
@@ -8,7 +7,6 @@ import CasebasePage from './pages/CasebasePage';
 import CaseDetailPage from './pages/CaseDetailPage';
 import SettingsPage from './pages/SettingsPage';
 import AIDiagnosisPage from './pages/AIDiagnosisPage';
-import LogSearchPage from './pages/LogSearchPage';
 
 function App() {
   return (
@@ -20,7 +18,6 @@ function App() {
         <Route path="cases" element={<CasebasePage />} />
         <Route path="cases/:caseId" element={<CaseDetailPage />} />
         <Route path="diagnosis" element={<AIDiagnosisPage />} />
-        <Route path="logs" element={<LogSearchPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
     </Routes>

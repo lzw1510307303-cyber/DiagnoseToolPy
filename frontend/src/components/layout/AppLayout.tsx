@@ -6,7 +6,6 @@ import {
   FolderOutlined,
   SettingOutlined,
   RobotOutlined,
-  ConsoleSqlOutlined,
 } from '@ant-design/icons';
 
 const { Sider, Content } = Layout;
@@ -31,11 +30,6 @@ const menuItems = [
     key: '/diagnosis',
     icon: <RobotOutlined />,
     label: 'AI Diagnosis',
-  },
-  {
-    key: '/logs',
-    icon: <ConsoleSqlOutlined />,
-    label: 'Log Search',
   },
   {
     key: '/settings',
