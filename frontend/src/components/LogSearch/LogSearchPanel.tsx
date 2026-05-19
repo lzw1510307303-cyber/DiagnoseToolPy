@@ -10,13 +10,18 @@ import {
   Tag,
   Tooltip,
   message,
+  Modal,
+  Alert,
+  Spin,
+  Descriptions,
 } from 'antd';
-import { QuestionCircleOutlined, SearchOutlined, ClearOutlined } from '@ant-design/icons';
+import { QuestionCircleOutlined, SearchOutlined, ClearOutlined, RobotOutlined } from '@ant-design/icons';
 import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
 import type { MatchMode, SearchState } from '../../types/logSearch';
 import { searchLogs } from '../../api/logSearchApi';
 import type { LogSearchResponse } from '../../types/logSearch';
+import { diagnoseLogs } from '../../api/logDiagnosisApi';
 import LogResults from '../LogResults/LogResults';
 
 const { Text } = Typography;
@@ -39,6 +44,15 @@ export default function LogSearchPanel({ onResults }: LogSearchPanelProps) {
     pageSize: 20,
   });
   const [results, setResults] = useState<LogSearchResponse | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectedLogs, setSelectedLogs] = useState<LogSearchResponse['results']>([]);
+
+  // Diagnosis modal state
+  const [diagVisible, setDiagVisible] = useState(false);
+  const [diagLoading, setDiagLoading] = useState(false);
+  const [diagModel, setDiagModel] = useState<string>('MiniMax-M2.7-32K');
+  const [diagResult, setDiagResult] = useState<string | null>(null);
+  const [diagError, setDiagError] = useState<string | null>(null);
 
   const handleSearch = async () => {
     if (!searchState.keywords.trim()) {
@@ -84,6 +98,7 @@ export default function LogSearchPanel({ onResults }: LogSearchPanelProps) {
         page_size: searchState.pageSize,
       });
       setResults(response);
+      setSelectedIds([]);
       onResults?.(response);
     } catch (error) {
       console.error('Search failed:', error);
@@ -105,17 +120,16 @@ export default function LogSearchPanel({ onResults }: LogSearchPanelProps) {
       pageSize: 20,
     });
     setResults(null);
+    setSelectedIds([]);
   };
 
   const handlePageChange = (page: number, pageSize: number) => {
     setSearchState((prev) => ({ ...prev, page, pageSize }));
-    // Trigger search with new page
+    setSelectedIds([]);
     setTimeout(handleSearch, 0);
   };
 
-  const handleTimeRangeChange = (
-    dates: [Dayjs | null, Dayjs | null] | null
-  ) => {
+  const handleTimeRangeChange = (dates: [Dayjs | null, Dayjs | null] | null) => {
     if (dates && dates[0] && dates[1]) {
       setSearchState((prev) => ({
         ...prev,
@@ -128,6 +142,56 @@ export default function LogSearchPanel({ onResults }: LogSearchPanelProps) {
         startTime: null,
         endTime: null,
       }));
+    }
+  };
+
+  const handleSelectionChange = (ids: string[]) => {
+    setSelectedIds(ids);
+    if (results) {
+      const selected = results.results.filter((r) => ids.includes(r.id));
+      setSelectedLogs(selected);
+    }
+  };
+
+  const handleDiagnose = () => {
+    if (selectedIds.length === 0) {
+      message.warning('请先选择要诊断的日志');
+      return;
+    }
+    setDiagVisible(true);
+    setDiagResult(null);
+    setDiagError(null);
+  };
+
+  const handleDiagSubmit = async () => {
+    if (selectedLogs.length === 0) {
+      message.warning('没有选中的日志');
+      return;
+    }
+
+    setDiagLoading(true);
+    setDiagError(null);
+    setDiagResult(null);
+
+    try {
+      const logsToSend = selectedLogs.map((log) => ({
+        id: log.id,
+        timestamp: log.timestamp,
+        level: log.level,
+        source: log.source,
+        message: log.message,
+      }));
+
+      const response = await diagnoseLogs({
+        logs: logsToSend,
+        model: diagModel,
+      });
+      setDiagResult(response.diagnosis);
+    } catch (error) {
+      console.error('Diagnosis failed:', error);
+      setDiagError(error instanceof Error ? error.message : '诊断失败，请重试');
+    } finally {
+      setDiagLoading(false);
     }
   };
 
@@ -236,6 +300,18 @@ export default function LogSearchPanel({ onResults }: LogSearchPanelProps) {
           <Button icon={<ClearOutlined />} onClick={handleReset}>
             重置
           </Button>
+          {results && results.total > 0 && (
+            <Button
+              type="default"
+              icon={<RobotOutlined />}
+              onClick={handleDiagnose}
+              disabled={selectedIds.length === 0}
+            >
+              {selectedIds.length > 0
+                ? `诊断已选日志 (${selectedIds.length})`
+                : '选择日志后诊断'}
+            </Button>
+          )}
         </Space>
       </Space>
 
@@ -245,8 +321,98 @@ export default function LogSearchPanel({ onResults }: LogSearchPanelProps) {
           results={results}
           keywords={searchState.keywords.split(/[,，]/).filter((k) => k.trim())}
           onPageChange={handlePageChange}
+          selectedIds={selectedIds}
+          onSelectionChange={handleSelectionChange}
         />
       )}
+
+      {/* 诊断 Modal */}
+      <Modal
+        title="AI 日志诊断"
+        open={diagVisible}
+        onCancel={() => setDiagVisible(false)}
+        footer={[
+          <Button key="cancel" onClick={() => setDiagVisible(false)}>
+            关闭
+          </Button>,
+          <Button
+            key="submit"
+            type="primary"
+            loading={diagLoading}
+            onClick={handleDiagSubmit}
+            disabled={selectedLogs.length === 0}
+          >
+            开始诊断
+          </Button>,
+        ]}
+        width={700}
+      >
+        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+          <Descriptions column={2} size="small" bordered>
+            <Descriptions.Item label="已选日志数量">
+              {selectedLogs.length} 条
+            </Descriptions.Item>
+            <Descriptions.Item label="选择的大模型">
+              <Select
+                value={diagModel}
+                onChange={setDiagModel}
+                style={{ width: 200 }}
+                options={[
+                  { value: 'MiniMax-M2.7-32K', label: 'MiniMax M2.7-32K' },
+                  { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
+                  { value: 'gpt-4o', label: 'GPT-4o' },
+                  { value: 'claude-3-haiku', label: 'Claude 3 Haiku' },
+                ]}
+              />
+            </Descriptions.Item>
+          </Descriptions>
+
+          {diagError && (
+            <Alert
+              message="诊断失败"
+              description={diagError}
+              type="error"
+              showIcon
+            />
+          )}
+
+          {diagResult && (
+            <Alert
+              message="AI 诊断结果"
+              description={
+                <pre
+                  style={{
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
+                    fontFamily: 'inherit',
+                    maxHeight: 400,
+                    overflow: 'auto',
+                  }}
+                >
+                  {diagResult}
+                </pre>
+              }
+              type="info"
+              showIcon
+            />
+          )}
+
+          {diagLoading && (
+            <div style={{ textAlign: 'center', padding: 24 }}>
+              <Spin size="large" tip="正在分析日志..." />
+            </div>
+          )}
+
+          {!diagResult && !diagLoading && (
+            <Alert
+              message="注意事项"
+              description='点击"开始诊断"后，AI 将分析您选择的日志条目并给出可能的故障原因和建议。'
+              type="warning"
+              showIcon
+            />
+          )}
+        </Space>
+      </Modal>
     </Card>
   );
 }
