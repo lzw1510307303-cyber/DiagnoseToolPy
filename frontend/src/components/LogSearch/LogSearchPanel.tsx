@@ -14,8 +14,10 @@ import {
   Alert,
   Spin,
   Descriptions,
+  Switch,
+  Divider,
 } from 'antd';
-import { QuestionCircleOutlined, SearchOutlined, ClearOutlined, RobotOutlined } from '@ant-design/icons';
+import { QuestionCircleOutlined, SearchOutlined, ClearOutlined, RobotOutlined, CompressOutlined } from '@ant-design/icons';
 import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
 import type { MatchMode, SearchState } from '../../types/logSearch';
@@ -42,6 +44,8 @@ export default function LogSearchPanel({ onResults }: LogSearchPanelProps) {
     endTime: null,
     page: 1,
     pageSize: 20,
+    compress: false,
+    compressBy: 'message',
   });
   const [results, setResults] = useState<LogSearchResponse | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -96,6 +100,8 @@ export default function LogSearchPanel({ onResults }: LogSearchPanelProps) {
         end_time: searchState.endTime || undefined,
         page: searchState.page,
         page_size: searchState.pageSize,
+        compress: searchState.compress,
+        compress_by: searchState.compressBy,
       });
       setResults(response);
       setSelectedIds([]);
@@ -118,6 +124,8 @@ export default function LogSearchPanel({ onResults }: LogSearchPanelProps) {
       endTime: null,
       page: 1,
       pageSize: 20,
+      compress: false,
+      compressBy: 'message',
     });
     setResults(null);
     setSelectedIds([]);
@@ -148,7 +156,14 @@ export default function LogSearchPanel({ onResults }: LogSearchPanelProps) {
   const handleSelectionChange = (ids: string[]) => {
     setSelectedIds(ids);
     if (results) {
-      const selected = results.results.filter((r) => ids.includes(r.id));
+      const allItems = results.results;
+      const selected = allItems.filter((r) => {
+        if ('count' in r && 'first_log' in r) {
+          // Compressed group - check if any log ID in the group is selected
+          return r.log_ids.some((id: string) => ids.includes(id));
+        }
+        return ids.includes(r.id);
+      });
       setSelectedLogs(selected);
     }
   };
@@ -174,13 +189,24 @@ export default function LogSearchPanel({ onResults }: LogSearchPanelProps) {
     setDiagResult(null);
 
     try {
-      const logsToSend = selectedLogs.map((log) => ({
-        id: log.id,
-        timestamp: log.timestamp,
-        level: log.level,
-        source: log.source,
-        message: log.message,
-      }));
+      const logsToSend = selectedLogs.map((log) => {
+        if ('first_log' in log) {
+          return {
+            id: log.first_log.id,
+            timestamp: log.first_log.timestamp,
+            level: log.first_log.level,
+            source: log.first_log.source,
+            message: log.first_log.message,
+          };
+        }
+        return {
+          id: log.id,
+          timestamp: log.timestamp,
+          level: log.level,
+          source: log.source,
+          message: log.message,
+        };
+      });
 
       const response = await diagnoseLogs({
         logs: logsToSend,
@@ -272,6 +298,36 @@ export default function LogSearchPanel({ onResults }: LogSearchPanelProps) {
                 { value: 'DEBUG', label: <Tag color="gray">DEBUG</Tag> },
               ]}
             />
+          </Space>
+
+          <Space direction="vertical" size="small">
+            <Space>
+              <Text strong>日志压缩</Text>
+              <Tooltip title="开启后将相同消息或线程的日志合并显示，减少重复信息">
+                <QuestionCircleOutlined />
+              </Tooltip>
+              <Switch
+                size="small"
+                checked={searchState.compress}
+                onChange={(checked) =>
+                  setSearchState((prev) => ({ ...prev, compress: checked }))
+                }
+              />
+            </Space>
+            {searchState.compress && (
+              <Select
+                value={searchState.compressBy}
+                onChange={(value) =>
+                  setSearchState((prev) => ({ ...prev, compressBy: value }))
+                }
+                style={{ width: 150 }}
+                options={[
+                  { value: 'message', label: '按消息内容' },
+                  { value: 'thread_id', label: '按线程ID' },
+                  { value: 'both', label: '消息+线程' },
+                ]}
+              />
+            )}
           </Space>
 
           <Space direction="vertical" size="small">
