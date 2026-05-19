@@ -1,0 +1,6 @@
+/* Highlight styles for log search */
+mark.highlight {
+  background-color: yellow;
+  padding: 0 2px;
+  border-radius: 2px;
+}
